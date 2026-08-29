@@ -322,6 +322,7 @@ EOU
         end
       else
         stdout.puts "Cannot find class: #{type_name}"
+        return 1
       end
 
       0
@@ -380,6 +381,7 @@ EOU
         end
       else
         stdout.puts "Cannot find class: #{type_name}"
+        return 1
       end
 
       0
@@ -990,7 +992,7 @@ Options:
       args.each do |file|
         path = Pathname(file)
         if path.directory?
-          Pathname.glob((path + "**/*.rbs").to_s).each do |path|
+          path.glob("**/*.rbs").each do |path|
             stdout.puts "Processing #{path}..."
             annotator.annotate_file(path)
           end
@@ -1075,7 +1077,7 @@ EOB
       stdout.print(out)
       stderr.print(err)
 
-      status.to_i
+      status.exitstatus || 128 + (status.termsig or raise)
     end
 
     def run_collection(args, options)
@@ -1084,7 +1086,15 @@ EOB
       opts = collection_options(args)
       params = {} #: Hash[Symbol, untyped]
       opts.order args.drop(1), into: params
-      config_path = options.config_path or raise
+      if %w[help hel he h].include?(args[0])
+        stdout.puts opts.help
+        return 0
+      end
+
+      unless config_path = options.config_path
+        stderr.puts "`rbs collection` cannot be used with `--no-collection`."
+        return 1
+      end
       lock_path = Collection::Config.to_lockfile_path(config_path)
 
       case args[0]
@@ -1130,9 +1140,7 @@ EOB
           puts "#{lock_path} should exist to clean"
           return 1
         end
-        Collection::Cleaner.new(lockfile_path: lock_path)
-      when 'help', 'hel', 'he', 'h'
-        puts opts.help
+        Collection::Cleaner.new(lockfile_path: lock_path).clean
       else
         puts opts.help
         return 1

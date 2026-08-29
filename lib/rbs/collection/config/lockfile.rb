@@ -31,7 +31,7 @@ module RBS
           data = {
             "path" => path.to_s,
             "gems" => gems.each_value.sort_by {|g| g[:name] }.map {|hash| library_data(hash) },
-            "gemfile_lock_path" => gemfile_lock_path.to_s
+            "gemfile_lock_path" => gemfile_lock_path&.to_s
           }
 
           data.delete("gems") if gems.empty?
@@ -82,7 +82,9 @@ module RBS
               raise CollectionNotAvailable unless meta_path.exist?
               raise CollectionNotAvailable unless library_data(gem) == YAML.load(meta_path.read)
             when Sources::Local
-              raise CollectionNotAvailable unless fullpath.join(gem[:name], gem[:version]).symlink?
+              installed_path = fullpath.join(gem[:name], gem[:version])
+              source_path = source.full_path.join(gem[:name], gem[:version])
+              raise CollectionNotAvailable unless installed_path.symlink? && File.identical?(installed_path, source_path)
             end
           end
         end
